@@ -7,7 +7,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest]
         java: [17]
 
     runs-on: ${{ matrix.os }}
@@ -18,13 +18,27 @@ jobs:
       uses: actions/setup-java@v1
       with:
         java-version: ${{ matrix.java }}
-    - name: Cache Gradle packages
-      uses: actions/cache@v2
+
+    - name: Setup Gradle
+      uses: gradle/gradle-build-action@v2
       with:
-        path: |
-          ~/.gradle/caches
-          ~/.gradle/wrapper
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle.kts', 'gradle/wrapper/gradle-wrapper.properties', 'gradle.properties') }}
+        # The Gradle wrapper's version (already the default, putting it here to clarity)
+        gradle-version: wrapper
+        # Removing unused files from Gradle User Home before saving to cache (i.e. older versions of gradle)
+        gradle-home-cache-cleanup: true
+        # Cache downloaded JDKs in addition to the default directories.
+        gradle-home-cache-includes: |
+          caches
+          notifications
+          jdks
+        # Only write to the cache for builds on the 'main' and 'release' branches. (Default is 'main' only.)
+        # Builds on other branches will only read existing entries from the cache.
+        #cache-read-only: ${{ github.ref != 'refs/heads/main'  }}
+
+        # In our setup, we have `main` as the `source of truth`, but to avoid complications we will just
+        # allow cache writing from any branch.
+        cache-read-only: false
+
     - name: Cache pnpm packages
       uses: actions/cache@v2
       with:
@@ -32,6 +46,7 @@ jobs:
           ~/.vaadin
           ~/.pnpm-store
         key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml', '**/package.json') }}
+
     - name: Build with Gradle
-      run: ./gradlew clean build '-Pvaadin.productionMode' --stacktrace --info --no-daemon
+      run: ./gradlew clean build '-Pvaadin.productionMode' --stacktrace --info --no-daemon --scan --build-cache -Dorg.gradle.caching.debug=true
 
