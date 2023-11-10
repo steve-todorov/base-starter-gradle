@@ -50,3 +50,4 @@ jobs:
     - name: Build with Gradle
       run: ./gradlew clean build '-Pvaadin.productionMode' --stacktrace --info --no-daemon --scan --build-cache -Dorg.gradle.caching.debug=true
 
+
