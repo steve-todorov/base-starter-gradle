@@ -47,7 +47,56 @@ jobs:
           ~/.pnpm-store
         key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml', '**/package.json') }}
 
-    - name: Build with Gradle
-      run: ./gradlew clean build '-Pvaadin.productionMode' --stacktrace --info --no-daemon --scan --build-cache -Dorg.gradle.caching.debug=true
+    - name: Archive package.json and package-lock.json (pre build)
+      uses: actions/upload-artifact@v3
+      if: ${{ always() }}
+      with:
+        name: pre-build-package-json
+        path: |
+          package.json
+          package-lock.json
 
+    - name: Pre-checksum
+      id: pre_checksums
+      run: |
+        packageChecksum=$(md5sum package.json)
+        packageLockChecksum=$(md5sum package-lock.json || echo "File not found")
+        echo "package=$packageChecksum" >> "$GITHUB_OUTPUT"
+        echo "packageLock=$packageLockChecksum" >> "$GITHUB_OUTPUT"
+
+    - name: Build with Gradle
+      run: ./gradlew clean vaadinClean build '-Pvaadin.productionMode' --stacktrace --info --no-daemon --scan --build-cache -Dorg.gradle.caching.debug=true
+
+    - name: Archive package.json and package-lock.json (post build)
+      uses: actions/upload-artifact@v3
+      if: ${{ always() }}
+      with:
+        name: post-build-package-json
+        path: |
+          package.json
+          package-lock.json
+
+    - name: Post-checksum
+      id: post_checksums
+      run: |
+        packageChecksum=$(md5sum package.json)
+        packageLockChecksum=$(md5sum package-lock.json || echo "File not found")
+        echo "package=$packageChecksum" >> "$GITHUB_OUTPUT"
+        echo "packageLock=$packageLockChecksum" >> "$GITHUB_OUTPUT"
+
+    - name: Adding summary
+      run: | 
+        echo '### Pre build package json checksums' >> $GITHUB_STEP_SUMMARY
+        echo '' >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo '${{ steps.pre_checksums.outputs.package }}' >> $GITHUB_STEP_SUMMARY
+        echo '${{ steps.pre_checksums.outputs.packageLock }}' >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        
+        echo '### Post build package json checksums' >> $GITHUB_STEP_SUMMARY
+        echo '' >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo '${{ steps.post_checksums.outputs.package }}' >> $GITHUB_STEP_SUMMARY
+        echo '${{ steps.post_checksums.outputs.packageLock }}' >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
 
