@@ -19,6 +19,22 @@ jobs:
       with:
         java-version: ${{ matrix.java }}
 
+    - name: Pre-details
+      id: pre_details
+      run: |
+        packageChecksum=$(md5sum package.json)
+        packageStat=$(stat package.json | sed 's/$/\\n/' | tr -d '\n')
+        packageLockChecksum=$(md5sum package-lock.json || echo "File not found")
+        packageLockStat=$([[ -f package-lock.json ]] && stat package-lock.json | sed 's/$/\\n/' | tr -d '\n' || echo "File not found.")
+        echo $packageChecksum
+        echo "$packageStat"
+        echo $packageLockChecksum
+        echo "$packageLockStat"
+        echo "package=$packageChecksum" >> "$GITHUB_OUTPUT"
+        echo "packageStat=$packageStat" >> "$GITHUB_OUTPUT"
+        echo "packageLock=$packageLockChecksum" >> "$GITHUB_OUTPUT"
+        echo "packageLockStat=$packageLockStat" >> "$GITHUB_OUTPUT"
+
     - name: Setup Gradle
       uses: gradle/gradle-build-action@v2
       with:
@@ -56,16 +72,10 @@ jobs:
           package.json
           package-lock.json
 
-    - name: Pre-checksum
-      id: pre_checksums
-      run: |
-        packageChecksum=$(md5sum package.json)
-        packageLockChecksum=$(md5sum package-lock.json || echo "File not found")
-        echo "package=$packageChecksum" >> "$GITHUB_OUTPUT"
-        echo "packageLock=$packageLockChecksum" >> "$GITHUB_OUTPUT"
+
 
     - name: Build with Gradle
-      run: ./gradlew clean vaadinClean build '-Pvaadin.productionMode' --stacktrace --info --no-daemon --scan --build-cache -Dorg.gradle.caching.debug=true
+      run: ./gradlew clean build '-Pvaadin.productionMode' --stacktrace --info --no-daemon --scan --build-cache -Dorg.gradle.caching.debug=true
 
     - name: Archive package.json and package-lock.json (post build)
       uses: actions/upload-artifact@v3
@@ -76,27 +86,64 @@ jobs:
           package.json
           package-lock.json
 
-    - name: Post-checksum
-      id: post_checksums
+    - name: Post-details
+      id: post_details
       run: |
         packageChecksum=$(md5sum package.json)
+        packageStat=$(stat package.json | sed 's/$/\\n/' | tr -d '\n')
         packageLockChecksum=$(md5sum package-lock.json || echo "File not found")
+        packageLockStat=$([[ -f package-lock.json ]] && stat package-lock.json | sed 's/$/\\n/' | tr -d '\n' || echo "File not found.")
+        echo $packageChecksum
+        echo "$packageStat"
+        echo $packageLockChecksum
+        echo "$packageLockStat"
         echo "package=$packageChecksum" >> "$GITHUB_OUTPUT"
+        echo "packageStat=$packageStat" >> "$GITHUB_OUTPUT"
         echo "packageLock=$packageLockChecksum" >> "$GITHUB_OUTPUT"
+        echo "packageLockStat=$packageLockStat" >> "$GITHUB_OUTPUT"
+        echo "packageLockStat=$packageLockStat" >> "$GITHUB_OUTPUT"
+
 
     - name: Adding summary
       run: | 
-        echo '### Pre build package json checksums' >> $GITHUB_STEP_SUMMARY
+        echo '### Filesystem details' >> $GITHUB_STEP_SUMMARY
         echo '' >> $GITHUB_STEP_SUMMARY
+        echo 'Workspace path:' >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
-        echo '${{ steps.pre_checksums.outputs.package }}' >> $GITHUB_STEP_SUMMARY
-        echo '${{ steps.pre_checksums.outputs.packageLock }}' >> $GITHUB_STEP_SUMMARY
+        echo '${{ github.workspace }}' >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo 'Filesystem' >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        fs=$(mount)
+        echo "$fs" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
         
-        echo '### Post build package json checksums' >> $GITHUB_STEP_SUMMARY
+        echo '### Pre build details' >> $GITHUB_STEP_SUMMARY
         echo '' >> $GITHUB_STEP_SUMMARY
+        echo 'Checksums: ' >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
-        echo '${{ steps.post_checksums.outputs.package }}' >> $GITHUB_STEP_SUMMARY
-        echo '${{ steps.post_checksums.outputs.packageLock }}' >> $GITHUB_STEP_SUMMARY
+        echo -e '${{ steps.pre_details.outputs.package }}' >> $GITHUB_STEP_SUMMARY
+        echo -e '${{ steps.pre_details.outputs.packageLock }}' >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo '' >> $GITHUB_STEP_SUMMARY
+        echo 'File stats' >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo -e '${{ steps.pre_details.outputs.packageStat }}' >> $GITHUB_STEP_SUMMARY
+        echo '' >> $GITHUB_STEP_SUMMARY
+        echo -e '${{ steps.pre_details.outputs.packageLockStat }}' >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        
+        echo '### Post build details' >> $GITHUB_STEP_SUMMARY
+        echo '' >> $GITHUB_STEP_SUMMARY
+        echo 'Checksums: ' >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo -e '${{ steps.post_details.outputs.package }}' >> $GITHUB_STEP_SUMMARY
+        echo -e '${{ steps.post_details.outputs.packageLock }}' >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo 'File stats' >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo -e '${{ steps.post_details.outputs.packageStat }}' >> $GITHUB_STEP_SUMMARY
+        echo '' >> $GITHUB_STEP_SUMMARY
+        echo -e '${{ steps.post_details.outputs.packageLockStat }}' >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
 
