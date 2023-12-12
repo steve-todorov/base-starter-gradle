@@ -61,6 +61,7 @@ jobs:
         path: |
           ~/.vaadin
           ~/.pnpm-store
+          ./frontend/generated
         key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml', '**/package.json') }}
 
     - name: Archive package.json and package-lock.json (pre build)
@@ -71,8 +72,6 @@ jobs:
         path: |
           package.json
           package-lock.json
-
-
 
     - name: Build with Gradle
       run: ./gradlew clean build '-Pvaadin.productionMode' --stacktrace --info --no-daemon --scan --build-cache -Dorg.gradle.caching.debug=true
